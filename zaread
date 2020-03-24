@@ -26,7 +26,6 @@ while [[ -z `command -v "$reader"` ]]; do
 done
 echo "We'll read PDF with $reader."
 
-
 ## create position and file variables ##
 
 # complete file name (path excluded):
@@ -43,9 +42,12 @@ else
 fi
 echo "$directory""$file"
 
-# if file type is pdf, then just read the file
+# if file type is pdf or epub, then just read the file
 if [[ `file "$directory""$file" | cut -d':' -f2 | cut -d' ' -f2` == "PDF"  ]]; then
   echo "The file is already in PDF format."
+  $reader "$directory""$file"
+elif [[ `file "$directory""$file" | cut -d':' -f2 | cut -d' ' -f2` == "EPUB"  ]]; then
+  echo "The file is already in EPUB format."
   $reader "$directory""$file"
 # else check if you already have its pdf version (if not, create it)
 else
@@ -56,11 +58,18 @@ else
   if [[ ( ! -f "$zadir$pdffile" ) || ( ! "$check" == `cat "$zadir"cksum/"$file".check` ) ]]; then
     # if it's a mobi file, then convert it to epub (the command depends on calibre)
     if [[ "$file" =~ ^.*\.mobi$ ]]; then
-      ebook-converter "$directory""$file" "$directory"`echo "$file" | sed 's/mobi$/epub/'`
+      ebook-convert "$directory""$file" "$zadir"`echo "$file" | sed 's/mobi$/epub/'`
+    # convert markdown to pdf using pandoc
+    elif [[ "$file" =~ ^.*\.md$ ]]; then
+      pandoc "$directory""$file" -o "$zadir""$pdffile"
     else
       libreoffice --convert-to pdf "$directory""$file" --headless --outdir "$zadir"
     fi
     echo "$check" > "$zadir"cksum/"$file".check
   fi
-  $reader "$zadir$pdffile"
+  if [[ "$file" =~ ^.*\.mobi$ ]]; then
+    $reader "$zadir`echo "$file" | sed 's/mobi$/epub/'`"
+  else
+    $reader "$zadir$pdffile"
+  fi
 fi
